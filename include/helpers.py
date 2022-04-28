@@ -1,9 +1,12 @@
+from itertools import count
 import logging
 from datetime import datetime
 import os
+import csv
 from bisect import bisect_left
 import numpy as np
 from include.arrival_rate_functions import *
+
 
 # configuration for logging   
 def configure_logging(loglevel):
@@ -38,21 +41,33 @@ def writepickle(dictlist, outfile):
 
 # generate non-homogeneous arrival process
 # TODO convert to generator
-def generate_arrivals(rate_func, size, deterministic=False):
+def generate_arrivals(rate_func, size, deterministic=False, seed=0):
+    np.random.seed(seed)
     n = 0
     t = 0
-    arrivals = [0] * size
-    logging.info('Generating %d arrival events - lambda(t): %s' % (size, rate_func))
+    logging.debug('Generating %d arrival events - lambda(t): %s' % (size, rate_func))
     while n < size:
         (lambda_t, lambda_max) = eval(rate_func)
         if deterministic:
             t = t + 1./lambda_t
         else:
             t = t + np.random.exponential(1./lambda_max)
-        if deterministic or lambda_max is None or np.random.uniform() < lambda_t/lambda_max:
-            arrivals[n] = t
+        if deterministic or np.random.uniform() < lambda_t/lambda_max:
+            yield (t, str(n))
             n = n+1
-    return arrivals
+
+# read trace from file
+def read_trace(filename):
+    with open(filename, "r") as csvfile:
+        datareader = csv.reader(csvfile)
+        next(datareader)  # yield the header row
+        count = 0
+        for row in datareader:
+            t = float(row[0])
+            flow = '.'.join(row[1:])
+            count = count + 1
+            yield (t,flow)
+    return count
 
 # estimate exact cardinality
 # TODO if not unique arrivals np.unique(A[win:i])    

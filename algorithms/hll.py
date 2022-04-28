@@ -45,7 +45,7 @@ def get_rho(w, max_width):
 '''
 def harmonic_mean(x):
     m = len(x)
-    return m / np.sum(1/x) 
+    return m / np.sum(1/x)
 
 
 '''
@@ -79,7 +79,7 @@ class HyperLogLogNoCorrections(object):
             self.alpha = get_alpha(p)
         else:
             raise ArgumentError("Alpha must be greater than 4")
-
+            
         self.m = 1 << p                         # number of registers
         self.p = p
         self.M = np.zeros(self.m, dtype=int)    # registers
@@ -99,6 +99,7 @@ class HyperLogLogNoCorrections(object):
     '''
     def _reg_and_rank(self, value):
         x = self.hash_function(value)
+        logging.debug(f'hash: {x}')
         j = x & (self.m - 1)
         w = x >> self.p
         return (j, get_rho(w, self.hashbit - self.p))
@@ -153,7 +154,7 @@ class HyperLogLogNoCorrections(object):
 class HyperLogLog(HyperLogLogNoCorrections):
     
     def __str__(self) -> str:
-        return "HLL+LC-m%d" % self.m
+        return "HLL-m%d" % self.m
 
     def _linearcounting(self):
         #count number or registers equal to 0
@@ -197,7 +198,8 @@ class HyperLogLogWithPastMemory(HyperLogLog):
     def __str__(self) -> str:
         return "HLL-ref-m%d" % self.m
 
-    def add(self, value, t):
+    def add(self, value):
+        t = Runtime.get().now
         self.history.append((t,value))
 
     def card(self):
@@ -205,17 +207,16 @@ class HyperLogLogWithPastMemory(HyperLogLog):
         # is ordered by constuction, we can apply binary search
         t = Runtime.get().now
         if t > self.W:
-            win_start_ptr = bisect_left(self.history, (t - self.W,))
+            l = bisect_left(self.history, t - self.W, key=lambda x: x[0])
         else:
-            win_start_ptr = 0
-        self.history = self.history[win_start_ptr:]
+            l = 0
+        self.history = self.history[l:]
         
         # now re-process the substream with hll
         # i.e. reset counters and re-fill HLL only with recent history
         # n.b use super().add() to add as in standard hyperloglog
-        self.M = [0 for m in self.M]
-        for j in range(len(self.history)):
-            item = self.history[j][1]
+        self.M = np.zeros(self.m) #[0 for m in self.M]
+        for _, item in self.history:
             super().add(repr(item))
         # then return usual cardinality estimator
         return super().card()
@@ -316,33 +317,36 @@ class HyperLogLogMle(HyperLogLogExponential):
 '''
 class StaggeredHyperLogLog(HyperLogLog):
 
-    __slots__ = ('rst', 'k', 'c', 'W', 'to', 'l', 'eM', 'Mold')
+    __slots__ = ('rst', 'k', 'c', 'W', 'to', 'l', 'eM', 'Mq')
 
     def __init__(self, W, m=None, error_rate=None, hashf=(sha1_32bit, 32)):
         super().__init__(m,error_rate,hashf)
         self.rst = 0
         self.W = W
-        self.Mold = np.zeros(self.m)
+        self.Mq = np.zeros(self.m)
         self.eM = np.zeros(self.m)                           # "equalized" registers
         self.c = self._compute_constants()                   # constants
         self.k = np.roll(np.arange(self.m-1, -1, -1), -1)    # register index 
         self.to = float(2 * self.W) / self.m                 # reset timeout
-        logging.debug(f'i: {self.k}, c: {self.c}')
+        logging.debug(f'initial configuration: {self.k}')
+        logging.debug(f'equalization constants: {self.c}')
+        logging.info(f'alpha: {self.alpha}, reset timeout: {self.to}')
 
     def __str__(self) -> str:
         return "stgHLL-m%d" % self.m
 
     # pre-compute constants for speed
     def _compute_constants(self):
-        #EulerGamma = sympy.EulerGamma.evalf()
+        #EulerGamma = float(sympy.EulerGamma.evalf())
         i = np.arange(1, self.m+1)
-        #return (np.log(self.m**2 / (2 * self.W * i)) - EulerGamma) / np.log(2)
+        #return (np.log(self.m**2 / (2 * self.W * i)) - EulerGamma) / np.log(2) - 0.5
         return np.log2(self.m**2 / (2 * self.W * i))
         
     '''
         Executes reset of one HLL register, circularly
     '''
     def circular_reset(self):
+        self.Mq = copy.copy(self.M) # store last value (sample-and-hold model)
         self.M[self.rst] = 0
         self.n[self.rst] = 0
         self.rst = (self.rst + 1) % self.m
@@ -360,7 +364,7 @@ class StaggeredHyperLogLog(HyperLogLog):
         k = (offset + self.k) % self.m
         
         # register equalization
-        self.eM = self.M + self.c[k]
+        self.eM = self.Mq + self.c[k]
 
         # estimation as in Flajolet
         E = self.alpha * self.W * harmonic_mean(2 ** self.eM)
@@ -425,7 +429,7 @@ if __name__ == '__main__':
     import string
     import random 
     error = 1.04 / np.sqrt(1)
-    hll = HyperLogLog(error, hashf=(lambda x: random.randint(0, 2**4 - 1), 4), alpha=no_alpha)
+    hll = HyperLogLog(error, hashf=(lambda x: random.randint(0, 2**4 - 1), 4))
     for n in range(50):
         s = "".join([string.ascii_letters[random.randint(0, len(string.ascii_letters)-1)] for n in range(2)])
         hll.add(s)

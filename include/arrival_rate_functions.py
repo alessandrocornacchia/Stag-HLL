@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 # add new functions here, and define below the default. 
 def const(a,t):
-    return (a,None) if np.isscalar(t) else (a*np.ones(len(t)), a)
+    return (a,a) if np.isscalar(t) else (a*np.ones(len(t)), a)
 
 def two_level(a1,a2,duty,T,t):
     
@@ -27,7 +27,7 @@ def linear_ramp(T,a,t):
 
 def sinusoid(f,a,t):
     fmax = 2*a
-    return (a * np.sin(2*np.pi*f*t) + a, fmax)
+    return (a * np.cos(2*np.pi*f*t) + a, fmax)
 
 def modulated_triangular(f,a,t):
     fmax = a
@@ -45,10 +45,12 @@ if __name__ == '__main__':
     T=10
     n = 1e3
     t = np.linspace(0,T,int(n))
-    LAMBDA_T = 'sinusoid(0.1,500,t)'
+    LAMBDA_T = 'sinusoid(0.1,5000,t)'
+    #LAMBDA_T = "two_level(15000, 5000, 0.5, 10, t)"
     y,_ = eval(LAMBDA_T)
     plt.plot(t, y)
-    print('Numerical average arrival rate', 1/T * np.trapz(y,t))
+    print('Numerical average arrival rate', np.trapz(y,t))
     plt.show()
+
 
     
