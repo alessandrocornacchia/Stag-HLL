@@ -19,6 +19,7 @@ def configure_logging(loglevel):
     if not os.path.exists(logdir):
         os.mkdir(logdir)    
     file = os.path.join(logdir, datetime.now().strftime("%Y%m%d_%H%M") + '.log')
+    create_directory_tree(file)
     logging.basicConfig(filename=None if loglevel=="INFO" else file,
                         level=loglevel_id,
                         format=format,
@@ -28,14 +29,25 @@ def configure_logging(loglevel):
     logging.info('| logging configured succesfully. Log level %s |', loglevel)
     logging.info('--------------------------------------------------')
 
+# if non-existent directory, create it
+def create_directory_tree(path):
+    p = os.path.split(path)
+    dir = os.path.join(*p[:-1])
+    try:
+        os.mkdir(dir)
+    except OSError as error:
+        pass
+    
 # strategy pattern for Simulator class: save results to file using this function
 def writecsv(dictlist, outfile):
     import pandas as pd
+    create_directory_tree(outfile)
     df = pd.DataFrame(dictlist)
     df.to_csv(outfile+'.csv')
 
 def writepickle(dictlist, outfile):
     import pandas as pd
+    create_directory_tree(outfile)
     df = pd.DataFrame(dictlist)
     df.to_pickle(outfile+'.pkl')
 
