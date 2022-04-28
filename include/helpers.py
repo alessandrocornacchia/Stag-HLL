@@ -16,8 +16,6 @@ def configure_logging(loglevel):
     
     format = '%(asctime)s - LOG-LEVEL:%(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s'
     logdir = 'results/logs'
-    if not os.path.exists(logdir):
-        os.mkdir(logdir)    
     file = os.path.join(logdir, datetime.now().strftime("%Y%m%d_%H%M") + '.log')
     create_directory_tree(file)
     logging.basicConfig(filename=None if loglevel=="INFO" else file,
