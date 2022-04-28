@@ -29,11 +29,11 @@ class Simulator():
         self.save = output_strategy
 
     # executes stream i.e. sequence of items
-    def stream_proc(self, stream, algorithm, S, chunksize=100):
+    def stream_proc(self, stream, algorithm, S, enable_pbar):
         t = 0
         ta, item = next(stream)
         dt = ta-t
-        with tqdm(total=S, desc='Stream Processing') as pbar:
+        with tqdm(total=S, desc='Stream Processing', disable=(not enable_pbar)) as pbar:
             while True:
                 # schedule next arrival
                 yield Runtime.get().timeout(dt)
@@ -119,7 +119,8 @@ class Simulator():
         r = self.args['repetitions']
         W = self.args['window_duration']
         lambda_t = self.args['arrival_rate']
-        
+        pbar = self.args['show_progress']
+
         results = []
         for ri in range(r):
             # fix simualtion seed
@@ -153,7 +154,7 @@ class Simulator():
                 logging.info(f'Algo: ExactCounting, Reps: {ri}, Window {Wi} [s]')
                 sc = StreamCardinalityCounter(Wi)
                 # -- initialize stream arrival process --
-                stream_proc = Runtime.get().process(self.stream_proc(A, sc, S))
+                stream_proc = Runtime.get().process(self.stream_proc(A, sc, S, pbar))
                 # --- initialize query process  ---
                 Runtime.get().process(self.async_query_process(sc))
                 # -- run simulation
@@ -175,6 +176,8 @@ class Simulator():
         q = self.args['query_interval'] is not None
         algorithm = self.args['hll_algorithm']
         dump = self.args['dump_counters']
+        pbar = self.args['show_progress']
+
         results = []
         for ri in range(r):
             # fix simualtion seed
@@ -217,7 +220,7 @@ class Simulator():
                     Runtime.set(simpy.Environment())
                     logging.info(f'Algo: {hll}, Registers: {mi}, Reps: {ri}, Window: {Wi:.5f} s')
                     # -- initialize stream arrival process --
-                    stream_proc = Runtime.get().process(self.stream_proc(A, hll, S))
+                    stream_proc = Runtime.get().process(self.stream_proc(A, hll, S, pbar))
                     # --- initialize query process  ---
                     if q:
                         Runtime.get().process(self.async_query_process(hll))

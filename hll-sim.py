@@ -29,6 +29,7 @@ def parse_arguments():
         p.add_argument('-d', '--deterministic-arrivals', action='store_true', default=False,
                                 help='Deterministic arrivals at specified rate')
         p.add_argument('-c', '--dump-counters', action='store_true', default=False)
+        p.add_argument('-p', '--show-progress', action='store_true', default=False)
         p.add_argument('-f', '--arrival-rate', type=str, default = LAMBDA_T,
                       help='Arrival rate function used for Poisson arrival process.  \
                       Check \'include/arrival_rate_functions.py\' for a list of available \
