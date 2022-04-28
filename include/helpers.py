@@ -34,8 +34,8 @@ def create_directory_tree(path):
     p = os.path.split(path)
     dir = os.path.join(*p[:-1])
     try:
-        os.mkdir(dir)
-    except OSError as error:
+        os.makedirs(dir)
+    except OSError:
         pass
     
 # strategy pattern for Simulator class: save results to file using this function
