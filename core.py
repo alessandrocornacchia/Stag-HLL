@@ -161,9 +161,10 @@ class Simulator():
                 Runtime.get().run(until=stream_proc)                    
                 # ----------------------------------------------------------
                 results.append(copy.copy(self.simrun_stats_record))
-                    
-            outf = os.path.join('./results', 
-                self.args['out'] if self.args['out'] is not None else time.strftime("%Y%m%d_%H%m%S"))
+
+            resdir = os.path.dirname(__file__) + './results'
+            fname = self.args['out'] if self.args['out'] is not None else time.strftime("%Y%m%d_%H%m%S")
+            outf = os.path.join(resdir, fname)
             self.save(results, outf)
 
 
