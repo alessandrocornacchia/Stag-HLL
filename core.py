@@ -110,9 +110,15 @@ class Simulator():
     # simulation entry point
     def start(self):
         if self.args['prog'] == 'ground-truth':
-            self.gt_handler()
+            results = self.gt_handler()
         elif self.args['prog'] == 'hll':
-            self.hll_handler()
+            results  = self.hll_handler()
+        
+        resdir = os.path.dirname(__file__)
+        fname = self.args['out'] if self.args['out'] is not None else time.strftime("%Y%m%d_%H%m%S")
+        outf = os.path.join(resdir, 'results', fname)
+        logging.info(f'Saving to {outf}')
+        self.save(results, outf)
     
     # handle case of ground-truth
     def gt_handler(self):
@@ -161,19 +167,15 @@ class Simulator():
                 Runtime.get().run(until=stream_proc)                    
                 # ----------------------------------------------------------
                 results.append(copy.copy(self.simrun_stats_record))
-
-            resdir = os.path.dirname(__file__) + './results'
-            fname = self.args['out'] if self.args['out'] is not None else time.strftime("%Y%m%d_%H%m%S")
-            outf = os.path.join(resdir, fname)
-            self.save(results, outf)
-
+        return results
 
     # handle case we want to simulate HLL
     def hll_handler(self):
         # short notation
         r = self.args['repetitions']
-        m = self.args['num_registers']        
         W = self.args['window_duration']
+        m = self.args['num_registers']        
+        
         q = self.args['query_interval'] is not None
         algorithm = self.args['hll_algorithm']
         dump = self.args['dump_counters']
@@ -234,7 +236,5 @@ class Simulator():
                     Runtime.get().run(until=stream_proc)
                     # ----------------------------------------------------------
                     results.append(copy.copy(self.simrun_stats_record))
-                    
-            outf = os.path.join('./results', 
-                self.args['out'] if self.args['out'] is not None else time.strftime("%Y%m%d_%H%m%S"))
-            self.save(results, outf)
+        return results
+            
