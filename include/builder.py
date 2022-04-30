@@ -1,4 +1,5 @@
 from algorithms.hll import *
+from algorithms.shll import SlidingHyperLogLog
 from include.hashfunctions import *
 
 ''' 
@@ -16,12 +17,13 @@ hll_algos ={'HLL': HyperLogLog,
             'HLLmle' : HyperLogLogMle,
             'HLLwM' : HyperLogLogWithPastMemory,
             'AHLL': AndreaTimeLogLog, 
-            'Stag-HLL': StaggeredHyperLogLog}
+            'StaggeredHLL': StaggeredHyperLogLog,
+            'SlidingHLL' : SlidingHyperLogLog}
     
 
 def build_hll(name, W, m):
     Hll = hll_algos[name]
-    if name in ['HLLwM', 'AHLL', 'Stag-HLL']:
+    if name in ['HLLwM', 'AHLL', 'StaggeredHLL', 'SlidingHLL']:
         hll = Hll(W=W, m=m) #, hashf=(random_uniform_32bit,32))
     else:                            
         hll = Hll(m=m)

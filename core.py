@@ -116,7 +116,7 @@ class Simulator():
         
         resdir = os.path.dirname(__file__)
         fname = self.args['out'] if self.args['out'] is not None else time.strftime("%Y%m%d_%H%m%S")
-        outf = os.path.join(resdir, 'results', fname)
+        outf = os.path.normpath(os.path.join(resdir, 'results', fname))
         logging.info(f'Saving to {outf}')
         self.save(results, outf)
     
@@ -215,7 +215,7 @@ class Simulator():
                     self.simrun_stats_record['registers_equalized'] = []
                     self.simrun_stats_record['registers'] = []
                     self.simrun_stats_record['nhits'] = []
-                    self.simrun_stats_record['algorithm'] = str(hll)
+                    self.simrun_stats_record['algorithm'] = algorithm
                     self.simrun_stats_record['hllcards'] = []
                     
                     # ---------- run discrete-event simulator  --------------
@@ -227,10 +227,10 @@ class Simulator():
                     # --- initialize query process  ---
                     if q:
                         Runtime.get().process(self.async_query_process(hll))
-                        if algorithm == 'Stag-HLL' and dump:
+                        if algorithm == 'StaggeredHLL' and dump:
                             Runtime.get().process(self.dump_reg(hll))
                     # -- initialize register reset process ---
-                    if algorithm == 'Stag-HLL':
+                    if algorithm == 'StaggeredHLL':
                         Runtime.get().process(self.reset_register(hll))
                     
                     Runtime.get().run(until=stream_proc)

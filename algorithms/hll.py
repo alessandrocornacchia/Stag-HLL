@@ -6,7 +6,6 @@ from argparse import ArgumentError
 from bisect import bisect_left
 import math
 import numpy as np
-from hashlib import sha1
 from include.hashfunctions import sha1_32bit
 import warnings
 import logging
@@ -75,11 +74,8 @@ class HyperLogLogNoCorrections(object):
         else:
             raise ArgumentError("Specify either m or error_rate")
         
-        if p >= 4:
-            self.alpha = get_alpha(p)
-        else:
-            raise ArgumentError("Alpha must be greater than 4")
-            
+        
+        self.alpha = get_alpha(p)    
         self.m = 1 << p                         # number of registers
         self.p = p
         self.M = np.zeros(self.m, dtype=int)    # registers
@@ -153,12 +149,19 @@ class HyperLogLogNoCorrections(object):
 '''
 class HyperLogLog(HyperLogLogNoCorrections):
     
+    __slots__ = ('_small_range_threshold', '_large_range_threshold')
+
+    def __init__(self, m=None, error_rate=None, hashf=(sha1_32bit, 32)):
+        super().__init__(m, error_rate, hashf)
+        self._small_range_threshold = (5.0 / 2.0) * self.m
+        self._large_range_threshold = (1.0 / 30.0) * (1 << self.hashbit)
+        
     def __str__(self) -> str:
         return "HLL-m%d" % self.m
 
-    def _linearcounting(self):
-        #count number or registers equal to 0
-        V = (self.M == 0).sum()
+    def _linearcounting(self, V):
+        # count number or registers equal to 0
+        logging.debug(f'linear counting estimate: {self.m * np.log(self.m / V)}')
         return self.m * np.log(self.m / V)
 
     def _largerange_correction(self, E):
@@ -170,16 +173,16 @@ class HyperLogLog(HyperLogLogNoCorrections):
         """
         # HLL estimate
         E = self.alpha * self.m * harmonic_mean(2**self.M)
-        small_range_threshold = (5.0 / 2.0) * self.m
-        large_range_threshold = (1.0 / 30.0) * (1 << self.hashbit)
-        if abs(E-small_range_threshold)/small_range_threshold < 0.15:
+        
+        if abs(E-self._small_range_threshold)/self._small_range_threshold < 0.15:
           warnings.warn(("Warning: estimate is close to small error correction threshold. "
                         +"Output may not satisfy HyperLogLog accuracy guarantee."))
         # Small range correction i.e. resort to linear counting
-        if E <= small_range_threshold:
-            return self._linearcounting()
+        V = (self.M == 0).sum() # number of registers equal zero
+        if V > 0 and E <= self._small_range_threshold:
+            return self._linearcounting(V)
         # Normal range, no correction
-        if E <= large_range_threshold:
+        if E <= self._large_range_threshold:
             return E
         # Large range correction
         return self._largerange_correction(E)
@@ -346,7 +349,9 @@ class StaggeredHyperLogLog(HyperLogLog):
         Executes reset of one HLL register, circularly
     '''
     def circular_reset(self):
-        self.Mq = copy.copy(self.M) # store last value (sample-and-hold model)
+        # hold register content at last reset time
+        self.Mq = copy.copy(self.M) 
+        # reset  register content
         self.M[self.rst] = 0
         self.n[self.rst] = 0
         self.rst = (self.rst + 1) % self.m
@@ -368,10 +373,11 @@ class StaggeredHyperLogLog(HyperLogLog):
 
         # estimation as in Flajolet
         E = self.alpha * self.W * harmonic_mean(2 ** self.eM)
-        small_range_threshold = (5.0 / 2.0) * self.m
-        if E <= small_range_threshold:
-            E = self._linearcounting()
-        
+
+        V = (self.Mq == 0).sum()
+        if V > 0 and E <= self._small_range_threshold:
+            E = self._linearcounting(V)
+
         logging.debug(f'[t={t:.5f} s] phase-offset: {offset}')
         logging.debug(f'[t={t:.5f} s] i: {k}')
         logging.debug(f'[t={t:.5f} s] M: {self.M}')
