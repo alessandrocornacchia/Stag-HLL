@@ -70,7 +70,8 @@ class HyperLogLogNoCorrections(object):
         if m is None and error_rate is not None:
             p = int(math.ceil(math.log((1.04 / error_rate) ** 2, 2)))
         elif m is not None:
-            p = int(np.log2(m))
+            #p = int(np.log2(m))
+            p = int(np.ceil(np.log2(m)))
         else:
             raise ArgumentError("Specify either m or error_rate")
         
@@ -220,7 +221,7 @@ class HyperLogLogWithPastMemory(HyperLogLog):
         # n.b use super().add() to add as in standard hyperloglog
         self.M = np.zeros(self.m) #[0 for m in self.M]
         for _, item in self.history:
-            super().add(repr(item))
+            super().add(item)
         # then return usual cardinality estimator
         return super().card()
         

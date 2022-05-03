@@ -138,7 +138,7 @@ class SlidingHyperLogLog(HyperLogLog):
         # HyperLogLog harmonic mean estimate with registers populated with pkts in W
         E = self.alpha * self.m * harmonic_mean(2**M)
 
-        #count number or registers equal to 0
+        # count number or registers equal to 0
         V = (M==0).sum()
         if V > 0 and E <= self._small_range_threshold:
             return self._linearcounting(V)
