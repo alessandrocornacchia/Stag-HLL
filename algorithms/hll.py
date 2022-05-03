@@ -69,16 +69,16 @@ class HyperLogLogNoCorrections(object):
 
         if m is None and error_rate is not None:
             p = int(math.ceil(math.log((1.04 / error_rate) ** 2, 2)))
+            self.m = 1 << p                         # number of registers
         elif m is not None:
-            #p = int(np.log2(m))
             p = int(np.ceil(np.log2(m)))
+            self.m = m
         else:
             raise ArgumentError("Specify either m or error_rate")
         
         
         self.alpha = get_alpha(p)    
-        self.m = 1 << p                         # number of registers
-        self.p = p
+        self.p = p                              # number of bits used to index substream
         self.M = np.zeros(self.m, dtype=int)    # registers
         self.n = np.zeros(self.m, dtype=int)    # items/register (for statistics)
         self.hash_function = hashf[0]           # hash function to be used
