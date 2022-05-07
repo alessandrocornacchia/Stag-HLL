@@ -83,6 +83,7 @@ class HyperLogLogNoCorrections(object):
         self.n = np.zeros(self.m, dtype=int)    # items/register (for statistics)
         self.hash_function = hashf[0]           # hash function to be used
         self.hashbit = hashf[1]                 # number of bits of hash function
+        logging.debug(f'Initialized HLL with m={self.m}, p={self.p}')
 
     def __getstate__(self):
         return dict([x, getattr(self, x)] for x in self.__slots__)
@@ -96,8 +97,8 @@ class HyperLogLogNoCorrections(object):
     '''
     def _reg_and_rank(self, value):
         x = self.hash_function(value)
-        logging.debug(f'hash: {x}')
         j = x & (self.m - 1)
+        logging.debug(f'hash: {x}, substream: {j}')
         w = x >> self.p
         return (j, get_rho(w, self.hashbit - self.p))
 
@@ -321,17 +322,19 @@ class HyperLogLogMle(HyperLogLogExponential):
 '''
 class StaggeredHyperLogLog(HyperLogLog):
 
-    __slots__ = ('rst', 'k', 'c', 'W', 'to', 'l', 'eM', 'Mq')
+    __slots__ = ('rst', 'k', 'c', 'W', 'to', 'l', 'Mq', 'rpp')
 
-    def __init__(self, W, m=None, error_rate=None, hashf=(sha1_32bit, 32)):
+    def __init__(self, W, m=None, mq=None, error_rate=None, hashf=(sha1_32bit, 32)):
         super().__init__(m,error_rate,hashf)
         self.rst = 0
         self.W = W
-        self.Mq = np.zeros(self.m)
-        self.eM = np.zeros(self.m)                           # "equalized" registers
+        self.Mq = np.zeros(self.m)                                  
+        self.rpp = self.m - mq                          # register pruning index
+        #self.eM = np.zeros(self.m)                          # "equalized" registers
         self.c = self._compute_constants()                   # constants
         self.k = np.roll(np.arange(self.m-1, -1, -1), -1)    # register index 
         self.to = float(2 * self.W) / self.m                 # reset timeout
+        logging.debug(f'Staggered Hll initialized with m={self.m}, query enabled in range [{self.rpp}-{self.m-1}]')
         logging.debug(f'initial configuration: {self.k}')
         logging.debug(f'equalization constants: {self.c}')
         logging.info(f'alpha: {self.alpha}, reset timeout: {self.to}')
@@ -369,11 +372,27 @@ class StaggeredHyperLogLog(HyperLogLog):
         offset = math.floor(t/self.to)
         k = (offset + self.k) % self.m
         
+        # discard "recent" registers
+        eligible = k >= self.rpp
+        
         # register equalization
-        self.eM = self.Mq + self.c[k]
+        eM = self.Mq[eligible] + self.c[k[eligible]]
 
         # estimation as in Flajolet
-        E = self.alpha * self.W * harmonic_mean(2 ** self.eM)
+        m = self.m - self.rpp
+        logging.debug(f'Using only {m} registers')
+        logging.debug(f'Eligible are: {eligible}')
+
+        if m<=16:
+            alpha = 0.673
+        elif m <= 32:
+            alpha = 0.697
+        elif m <= 64:
+            alpha = 0.709
+        else:
+            alpha = 0.7213/(1 +1.079/m)
+        
+        E = alpha * self.W * harmonic_mean(2 ** eM)
 
         V = (self.Mq == 0).sum()
         if V > 0 and E <= self._small_range_threshold:
@@ -382,8 +401,9 @@ class StaggeredHyperLogLog(HyperLogLog):
         logging.debug(f'[t={t:.5f} s] phase-offset: {offset}')
         logging.debug(f'[t={t:.5f} s] i: {k}')
         logging.debug(f'[t={t:.5f} s] M: {self.M}')
+        logging.debug(f'[t={t:.5f} s] Mq: {self.Mq}')
+        logging.debug(f'[t={t:.5f} s] M equalized: {eM}')
         logging.debug(f'[t={t:.5f} s] c: {self.c[k]}')
-        logging.debug(f'[t={t:.5f} s] M equalized: {self.eM}')
         logging.debug(f'[t={t:.5f} s] Estimation: {E}')
 
         return E

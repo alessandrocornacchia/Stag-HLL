@@ -42,10 +42,11 @@ class StreamCardinalityCounter:
         if t > self.W:
             t0 = t - self.W
             l = bisect_left(self.history, t0, key=StreamCardinalityCounter._gettime)
+        
         # forget items outside window
-        del self.history[:l]
+        self.history = self.history[l:]
+        
         # count uniques of remaining items
-        #_, flows = zip(*self.history)
         uniq = set(map(StreamCardinalityCounter._getid, self.history))
         return len(uniq)
 

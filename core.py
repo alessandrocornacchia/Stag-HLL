@@ -190,7 +190,8 @@ class Simulator():
                 for mi in m:
 
                     print('')
-                    hll = build_hll(algorithm, Wi, mi)   
+                    gamma = 0.875
+                    hll = build_hll(algorithm, Wi, mi, gamma)   
                     
                     # ------ generate arrivals --------
                     if self.args['input_trace'] is None:
