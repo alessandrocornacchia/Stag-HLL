@@ -18,14 +18,18 @@ hll_algos ={'HLL': HyperLogLog,
             'HLLwM' : HyperLogLogWithPastMemory,
             'AHLL': AndreaTimeLogLog, 
             'StaggeredHLL': StaggeredHyperLogLog,
-            'SlidingHLL' : SlidingHyperLogLog}
+            'SlidingHLL' : SlidingHyperLogLog,
+            'StaggeredHLL-vc' : StaggeredHyperLogLog}
     
 
-def build_hll(name, W, m, gamma):
+def build_hll(name, W, m):
     Hll = hll_algos[name]
-    if name in ['HLLwM', 'AHLL', 'StaggeredHLL', 'SlidingHLL']:
+    if name in ['HLLwM', 'AHLL', 'StaggeredHLL', 'SlidingHLL', 'StaggeredHLL-vc']:
         if name == 'StaggeredHLL':    
-            hll = Hll(W=W, m=m, mq=math.floor(gamma * m)) #, hashf=(random_uniform_32bit,32))
+            hll = Hll(W=W, m=m) #, hashf=(random_uniform_32bit,32))
+        elif name == 'StaggeredHLL-vc':
+            gamma = 0.875
+            hll = Hll(W=W, m=m, mq=math.floor(gamma * m))
     else:                            
         hll = Hll(m=m)
     return hll

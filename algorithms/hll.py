@@ -329,6 +329,7 @@ class StaggeredHyperLogLog(HyperLogLog):
         self.rst = 0
         self.W = W
         self.Mq = np.zeros(self.m)                                  
+        mq = self.m if mq is None else mq
         self.rpp = self.m - mq                          # register pruning index
         #self.eM = np.zeros(self.m)                          # "equalized" registers
         self.c = self._compute_constants()                   # constants
