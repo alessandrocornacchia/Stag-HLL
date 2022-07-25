@@ -4,6 +4,7 @@ import core
 import sys
 from include.arrival_rate_functions import LAMBDA_T
 from include.builder import hll_algos
+import numpy as np
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Simulator of time-continuous HLL sketch")
@@ -20,11 +21,15 @@ def parse_arguments():
     prs = [subparser_hll, subparser_gt]
     for p in prs:
         p.add_argument('-q','--query-interval', type=str, help='Query period [s]')
+        p.add_argument('-D', '--duplicate-spacing', type=str, default=['W'], nargs='+', help='Spacing between duplcate packets of same flow [s]')
         p.add_argument('-W','--window-duration', type=float, nargs='+', help='Sliding window size in seconds')
         p.add_argument('-o', '--out', type=str, help='Output filename')
         p.add_argument('-L', '--log-level', type=str, choices=['debug', 'info', 'DEBUG', 'INFO'], 
                                     default='info', help='Set log level')
-        p.add_argument('-S','--stream-size', type=int, default=100000, help='Number of packets in simulation')
+        #p.add_argument('-S','--stream-size', type=int, default=100000, help='Number of packets in simulation')
+        p.add_argument('-t','--sim-time', type=float, default=np.inf, help='Simulation time')
+        p.add_argument('-b','--timestamp-bits', type=int, default=[32], nargs='+', help='Size of timestamp in bits')
+        p.add_argument('--num-cbr', type=int, default=0, help='Number of persistent cbr flows')
         p.add_argument('-r','--repetitions', default=1, type=int, help='Number of repetitions per experiment with different seeds')
         p.add_argument('-d', '--deterministic-arrivals', action='store_true', default=False,
                                 help='Deterministic arrivals at specified rate')
@@ -35,6 +40,7 @@ def parse_arguments():
                       Check \'include/arrival_rate_functions.py\' for a list of available \
                       functions or to define new ones')
         p.add_argument('-i', '--input-trace', type=str, help='Read from this input trace')
+        
         
         
     args = parser.parse_args()

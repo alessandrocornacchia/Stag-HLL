@@ -1,4 +1,5 @@
 from algorithms.hll import *
+from algorithms.pcsa import SlidingPCSA, StaggeredPCSA
 from algorithms.shll import SlidingHyperLogLog
 from include.hashfunctions import *
 
@@ -14,22 +15,21 @@ hll_algos ={'HLL': HyperLogLog,
             'HLLe': HyperLogLogExponential,
             'HLLei': HyperLogLogExponentialEqualSplit,
             'HLLi' : HyperLogLogEqualSplit,
-            'HLLmle' : HyperLogLogMle,
             'HLLwM' : HyperLogLogWithPastMemory,
-            'AHLL': AndreaTimeLogLog, 
             'StaggeredHLL': StaggeredHyperLogLog,
             'SlidingHLL' : SlidingHyperLogLog,
-            'StaggeredHLL-vc' : StaggeredHyperLogLog}
+            'StaggeredHLL-vc' : StaggeredHyperLogLog,
+            'StaggeredPCSA' : StaggeredPCSA,
+            'SlidingPCSA' : SlidingPCSA}
     
 
-def build_hll(name, W, m):
+def build_hll(name, W, m, b=32):
     Hll = hll_algos[name]
-    if name in ['HLLwM', 'AHLL', 'StaggeredHLL', 'SlidingHLL', 'StaggeredHLL-vc']:
-        if name == 'StaggeredHLL':    
-            hll = Hll(W=W, m=m) #, hashf=(random_uniform_32bit,32))
-        elif name == 'StaggeredHLL-vc':
+    if 'Staggered' in name or 'Sliding' in name:    
+        if name == 'StaggeredHLL-vc':
             gamma = 0.875
             hll = Hll(W=W, m=m, mq=math.floor(gamma * m))
+        hll = Hll(W=W, m=m, tbits=b) #, hashf=(random_uniform_32bit,32))
     else:                            
         hll = Hll(m=m)
     return hll

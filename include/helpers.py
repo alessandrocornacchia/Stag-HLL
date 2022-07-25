@@ -1,6 +1,7 @@
 from itertools import count
 import logging
 from datetime import datetime
+from global_ import Runtime
 import os
 import csv
 from bisect import bisect_left
@@ -27,7 +28,10 @@ def configure_logging(loglevel):
     logging.info('| logging configured succesfully. Log level %s |', loglevel)
     logging.info('--------------------------------------------------')
 
-# if non-existent directory, create it
+
+''' 
+    Check if path exists, otherwise creates all directories 
+'''
 def create_directory_tree(path):
     p = os.path.split(path)
     dir = os.path.join(*p[:-1])
@@ -49,43 +53,49 @@ def writepickle(dictlist, outfile):
     df = pd.DataFrame(dictlist)
     df.to_pickle(outfile+'.pkl')
 
-# generate non-homogeneous arrival process
-# TODO convert to generator
-def generate_arrivals(rate_func, size, deterministic=False, seed=0):
-    np.random.seed(seed)
+''' 
+    Generator that read trace from file 
+'''
+def read_trace(filename):
+    with open(filename, "r") as csvfile:
+        datareader = csv.reader(csvfile)
+        count = 0
+        for row in datareader:
+            
+            try:
+                t = float(row[0])
+            except:
+                continue # skip if header
+            
+            flow = '.'.join(row[1:])
+            count = count + 1
+            yield (t, flow)
+    return count
+
+
+'''
+    Flow generator according to non-homogeneous arrival process with specified rate
+'''
+def poisson_arrivals(rate_func, deterministic=False):
+    
     n = 0
     t = 0
-    logging.debug('Generating %d arrival events - lambda(t): %s' % (size, rate_func))
-    while n < size:
+    logging.debug(f'Starting Poisson process with lambda(t)={rate_func}')
+    while True: #n < size:
+        
         (lambda_t, lambda_max) = eval(rate_func)
+        
+        if lambda_max < 0:
+            raise ValueError("Arrival rate function must be positive")
+        elif lambda_max == 0:
+            logging.debug(f'Nothing to generate: Poisson process to be terminated')
+            break
+
         if deterministic:
             t = t + 1./lambda_t
         else:
             t = t + np.random.exponential(1./lambda_max)
+        
         if deterministic or np.random.uniform() < lambda_t/lambda_max:
             yield (t, str(n))
             n = n+1
-
-# read trace from file
-def read_trace(filename):
-    with open(filename, "r") as csvfile:
-        datareader = csv.reader(csvfile)
-        next(datareader)  # yield the header row
-        count = 0
-        for row in datareader:
-            t = float(row[0])
-            flow = '.'.join(row[1:])
-            count = count + 1
-            yield (t,flow)
-    return count
-
-# estimate exact cardinality
-# TODO if not unique arrivals np.unique(A[win:i])    
-def exact_cardinality(A,i,W):
-    tnow = A[i]
-    if tnow > W:
-        win_start_ptr = bisect_left(A[:i-1], tnow - W)
-    else:
-        win_start_ptr = 0
-    # +1 so to count also border items (oldest and newest inserted)
-    return i - win_start_ptr + 1

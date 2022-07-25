@@ -295,27 +295,24 @@ class HyperLogLogExponentialEqualSplit(HyperLogLogExponential):
         return "HLLexpes-m%d" % self.m
 
 
-'''manual rank, equal split '''
-class HyperLogLogEqualSplit(HyperLogLogExponentialEqualSplit):
+''' random rank, equal split '''
+class HyperLogLogEqualSplit(HyperLogLog):
 
+    __slots__ = ('j')  
+
+    ''' same as HLL but with continuous counters '''
+    def __init__(self, m=None, error_rate=None, hashf=(sha1_32bit, 32)):
+        super().__init__(m, error_rate, hashf)
+        self.j = 0
+
+    ''' split uniformly incoming flows on registers '''
     def _reg_and_rank(self, value):
-        # split uniformly incoming flows on registers
+        x = self.hash_function(value)
         self.j = (self.j + 1) % self.m    
-        # rank to be exactly log2 of the observed items
-        rho = self.gamma + np.log2(self.n[self.j]+1)         
-        return (self.j, rho)
-
-
-''' hll with MLE cardinality estimator '''
-class HyperLogLogMle(HyperLogLogExponential):
-
-    def card(self):
-        n = - 1./np.log(1-np.exp(-np.log(2) * self.M))
-        return float(self.m**2) / np.sum(1./n)
-
-    def __str__(self) -> str:
-        return "HLLmle-m%d" % self.m
-
+        logging.debug(f'hash: {x}, substream: {self.j}')
+        w = x >> self.p
+        return (self.j, get_rho(w, self.hashbit - self.p))
+        
 
 '''
     Staggered HyperLogLog. Periodic register reset
@@ -348,8 +345,9 @@ class StaggeredHyperLogLog(HyperLogLog):
         #EulerGamma = float(sympy.EulerGamma.evalf())
         i = np.arange(1, self.m+1)
         #return (np.log(self.m**2 / (2 * self.W * i)) - EulerGamma) / np.log(2) - 0.5
-        return np.log2(self.m**2 / (2 * self.W * i))
-        
+        #return np.log2(self.m**2 / (2 * self.W * i))
+        return np.log2(self.m / self.W) * np.ones(self.m)
+    
     '''
         Executes reset of one HLL register, circularly
     '''
@@ -408,46 +406,6 @@ class StaggeredHyperLogLog(HyperLogLog):
         logging.debug(f'[t={t:.5f} s] Estimation: {E}')
 
         return E
-
-
-'''
-    AndreaTimeLogLog : smoothing of counter values
-'''
-class AndreaTimeLogLog(HyperLogLog):
-    
-    __slots__ = ('Ts', 'Mmax', 'W')
-
-    def __init__(self, W, m=None, error_rate=None, hashf=(sha1_32bit, 32)):
-        super().__init__(m,error_rate,hashf)
-        self.Ts = [ 0 for i in range(self.m) ] # timestamp
-        self.Mmax = [ 0 for i in range(self.m) ] # current maximum rank
-        self.W = W
-
-    def __str__(self) -> str:
-        return "AndreaTimeLogLog-m%d" % self.m
-
-    def add(self, value):
-        
-        time = Runtime.get().now
-        (j,rho) = self._reg_and_rank(value)
-        # 1. Update-current maximum based on elapsed time since last arrival
-        elapsed = time - self.Ts[j]
-        # if out of transient
-        if time >= self.W:
-            # if inside window span smooth current maximum, else apply some heursitic e.g. -1
-            if elapsed <= self.W:
-                self.M[j] = max(0, np.log2(float(self.W-elapsed)/self.W * 2**self.Mmax[j]))
-            else:
-                self.M[j] = self.Mmax[j] - 1
-                self.Ts[j] = time
-                self.Mmax[j] = self.M[j]
-        # 2. Compare with item rank -> update if new maximum 
-        if self.M[j] < rho:
-            self.Ts[j] = time
-            self.Mmax[j] = rho
-        # log message
-        log = f"t={time}, Ts={self.Ts[j]}, rho={rho}, M{j}(t)={self.M[j]}"
-        logging.debug(log)
 
 
 
