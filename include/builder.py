@@ -1,5 +1,5 @@
 from algorithms.hll import *
-from algorithms.pcsa import SlidingPCSA, StaggeredPCSA
+from algorithms.pcsa import SlidingPCSA, SlidingPCSAPlus, StaggeredPCSA
 from algorithms.shll import SlidingHyperLogLog
 from include.hashfunctions import *
 
@@ -20,17 +20,20 @@ hll_algos ={'HLL': HyperLogLog,
             'SlidingHLL' : SlidingHyperLogLog,
             'StaggeredHLL-vc' : StaggeredHyperLogLog,
             'StaggeredPCSA' : StaggeredPCSA,
-            'SlidingPCSA' : SlidingPCSA}
+            'SlidingPCSA' : SlidingPCSA,
+            'SlidingPCSAPlus' : SlidingPCSAPlus}
     
 
 def build_hll(name, W, m, b=32):
     Hll = hll_algos[name]
-    if 'Staggered' in name or 'Sliding' in name:    
-        if name == 'StaggeredHLL-vc':
+    if name == 'SlidingPCSAPlus':
+        return Hll(W=W, m=m, tbits=b)
+    elif name == 'StaggeredHLL-vc':
             gamma = 0.875
-            hll = Hll(W=W, m=m, mq=math.floor(gamma * m))
-        hll = Hll(W=W, m=m, tbits=b) #, hashf=(random_uniform_32bit,32))
+            return Hll(W=W, m=m, mq=math.floor(gamma * m))
+    elif 'Staggered' in name or 'Sliding' in name:    
+        return Hll(W=W, m=m) #, hashf=(random_uniform_32bit,32))
     else:                            
-        hll = Hll(m=m)
-    return hll
+        return Hll(m=m)
+    
     

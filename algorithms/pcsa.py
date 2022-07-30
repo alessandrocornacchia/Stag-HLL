@@ -192,17 +192,48 @@ class StaggeredPCSA(PCSA):
 
 
 
-
 class SlidingPCSA(PCSA):
 
-    __slots__ = ('W', 'Brt', 'b')
+    __slots__ = ('W', 'Brt')
 
-    def __init__(self, W, m=None, error_rate=None, tbits=32, hashf=(sha1_32bit, 32)):
+    def __init__(self, W, m=None, error_rate=None, hashf=(sha1_32bit, 32)):
         super().__init__(m, error_rate, hashf)
         w = self.hashbit - self.p
         self.B = -np.inf * np.ones((self.m, w), dtype=float)  # bitmaps
         self.Brt = [[[] for _ in range(w)] for _ in range(self.m)]
         self.W = W
+        
+
+    def add(self, value):
+        (j,rho) = self._reg_and_rank(value)
+        t = Runtime.get().now
+        # statistical purposes
+        self.Brt[j][rho-1].append(t - self.B[j][rho-1])
+        # update bit
+        self.B[j][rho-1] = t
+        
+
+    def card(self):
+        """
+        Returns the estimate of the cardinality
+            - Z : \sum i=1 ^ m \rho_i
+            - \rho_i : position of the first least-significant 0 bit (right-most) in the bitmap
+        """
+        t = Runtime.get().now
+        Z = np.sum([np.where(bitmap < t - self.W)[0][0] for bitmap in self.B]).astype(float)
+        return self.m / PCSA.PHI  * ( 2 ** (Z/self.m) - 2 ** (- PCSA.CHI * Z/self.m) )
+
+
+
+'''
+    Sliding PCSA with offset trick
+'''
+class SlidingPCSAPlus(SlidingPCSA):
+
+    __slots__ = ('b')
+
+    def __init__(self, W, m=None, error_rate=None, tbits=32, hashf=(sha1_32bit, 32)):
+        super().__init__(W, m=m, error_rate=error_rate, hashf=hashf)
         self.b = tbits
         
 
@@ -211,7 +242,6 @@ class SlidingPCSA(PCSA):
         t = Runtime.get().now
         # statistical purposes
         # self.Brt[j][rho-1].append(t - self.B[j][rho-1])
-        # update bit
         
         # exponential increase every K bits
         #b = min(self.B.shape[1], 2 ** (np.ceil(rho / 2)-1))
@@ -219,17 +249,8 @@ class SlidingPCSA(PCSA):
         # linear increase every K bits
         #b = min(self.B.shape[1], np.ceil(rho / 2))
         
-        self.B[j][rho-1] = round_closest(t, nbits=self.b)
+        self.B[j][rho-1] = round_closest(t, nbits=self.b) #round_closest(t, nbits=self.b)
         
-        #offset = (float( - self.m )/2 + j) * 2**(-b)/self.m
-        #self.B[j][rho-1] = self.B[j][rho-1] + offset
-        ''' threshold based approach
-        if rho <= 4:
-            b=2
-        elif rho > 4 and rho <= 8:
-            b = 6
-        else:
-            b= 32 '''
         #logging.debug(f'rank: {rho}, bit allocation: {self.b}')
 
 
@@ -244,11 +265,11 @@ class SlidingPCSA(PCSA):
         Z = 0
         for j in range(self.m):
             offset = (float(-self.m)/2 + j) * 2**(-self.b)/self.m
-            #offset=0
+            offset = 0
             Z += np.where(self.B[j] + offset < t - self.W)[0][0]
 
-        #Z = np.sum([np.where(bitmap < t - self.W)[0][0] for bitmap in self.B]).astype(float)
         return self.m / PCSA.PHI  * ( 2 ** (Z/self.m) - 2 ** (- PCSA.CHI * Z/self.m) )
+
 
 if __name__ == '__main__':
     
