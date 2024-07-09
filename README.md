@@ -17,4 +17,13 @@ Most existing cardinality estimation algorithms do not natively support interval
 - register equalization at query times to account for counting of different registers over different time spans.
 - tested on both synthetic and real Internet traffic traces, ST-HLL is demonstrated to be up to 2x more accurate over the state-of-the-art Sliding HLL, for the same memory demand.
 
+## How to use
+We recommend to first familiarize yourself with the basic concepts of the paper prior to using the simulator.
 
+The simulator can read CSV traffic traces and output a cardinality estimate at every packet it processes.
+
+The main parameters are:
+- `W`: sliding window size
+- `m`: number of HLL registers
+ 
+Run `python hll-sim.py -h` to get the full list of options 
