@@ -345,8 +345,7 @@ class StaggeredHyperLogLog(HyperLogLog):
         #EulerGamma = float(sympy.EulerGamma.evalf())
         i = np.arange(1, self.m+1)
         #return (np.log(self.m**2 / (2 * self.W * i)) - EulerGamma) / np.log(2) - 0.5
-        #return np.log2(self.m**2 / (2 * self.W * i))
-        return np.log2(self.m / self.W) * np.ones(self.m)
+        return np.log2(self.m**2 / (2 * self.W * i))
     
     '''
         Executes reset of one HLL register, circularly

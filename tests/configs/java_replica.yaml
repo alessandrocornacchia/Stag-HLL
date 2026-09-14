@@ -1,0 +1,26 @@
+# Default config for tests/bias_vs_methods_java_replica.py
+# Exact match to count-distinct-algorithms' SketchAccuracyPlot.java (--kernel sliding).
+
+sketch:
+  lg_k: 12                 # p -> m = 2**lg_k registers
+  sliding_window: 40000.0  # W
+
+generator:
+  seed: 42
+  distribution:
+    type: dirichlet
+    unique_items: 30000    # size of the item vocabulary
+    alpha: 0.9              # Dirichlet concentration (lower = more skewed)
+  stages:
+    - name: leading_tail
+      events: 40
+      scale: 4000.0
+    - name: ramp
+      events: 35000
+      scale: 2.0
+    - name: plateau
+      events: 16500
+      scale: 2.0
+    - name: trailing_tail
+      events: 40
+      scale: 4000.0
