@@ -1,0 +1,24 @@
+[project]
+name = "stag-hll"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.10"
+dependencies = [
+    "matplotlib==3.5.1",
+    "matplotlib-inline==0.1.3",
+    "mpmath==1.2.1",
+    "nest-asyncio==1.5.5",
+    "numpy==1.22.3",
+    "pandas==1.4.2",
+    "psutil==5.9.0",
+    "pyyaml==6.0.2",
+    "scipy==1.8.0",
+    "seaborn==0.11.2",
+    "setuptools<81",
+    "simpy==4.0.1",
+    "sympy==1.10.1",
+    "tqdm==4.64.0",
+]
+
+[tool.uv]
+package = false
